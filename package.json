@@ -1,8 +1,8 @@
 {
   "name": "simon-game-fcc",
   "jest": {
-    "verbose": false,
-    "collectCoverage": false
+    "verbose": true,
+    "collectCoverage": true
   },
   "version": "1.0.0",
   "description": "https://github.com/0Prime/Simon-Game-FCC",
