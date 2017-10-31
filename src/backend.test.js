@@ -3,16 +3,8 @@ const { newGame, makeMove } = require('./backend')
 
 
 describe(`simon game`, () => {
-  it(`user can start new game`, () =>
-    expect(newGame()).toBeDefined())
-
-
-  it(`new game is expecting 1 press`, () =>
-    expect(newGame().expectedMoves).toHaveLength(1))
-
-
-  it(`user can input moves into game`, () =>
-    expect(makeMove).toBeDefined())
+  it(`new game is not over`, () =>
+    expect(newGame().isOver).toBe(false))
 
 
   it(`has expected moves only of four types`, () => {
@@ -35,15 +27,21 @@ describe(`simon game`, () => {
   })
 
 
-  it(`new game is not over`, () =>
-    expect(newGame().isOver).toBe(false))
-
-
   describe(`function makeMove`, () => {
     describe(`then user finishes round correctly`, () => {
 
-      for (round = 0; round < 20; round++)
-        testRoundLengthAfterRound(round, round + 1)
+      for (n = 0; n < 20; n++)
+        testRoundLength({ roundsPlayed: n, expectedLength: n + 1 })
+
+
+      function testRoundLength({ roundsPlayed, expectedLength }) {
+        it(`after ${roundsPlayed} rounds, game round length is ${expectedLength}`, () => {
+          const gameSoFar = gameAfterRounds(roundsPlayed)
+
+          expect(gameSoFar.expectedMoves).toHaveLength(expectedLength)
+        })
+      }
+
 
       it(`after 20 rounds game is over`, () =>
         expect(gameAfterRounds(20).isOver).toBe(true))
@@ -52,62 +50,45 @@ describe(`simon game`, () => {
 
     describe(`then user makes incorrect move`, () => {
       describe(`in normal mode`, () => {
-        it(`game does not increase expected moves`, () => {
-          const game0 = newGame()
+        testIncorrectMove({ rounds: 6, moves: 2, isStrict: false })
+        testIncorrectMove({ rounds: 12, moves: 10, isStrict: false })
+        testIncorrectMove({ rounds: 5, moves: 4, isStrict: false })
 
-          const game1 = makeMove(game0.expectedMoves[0] + 1, game0)
 
-          expect(game1.expectedMoves).toHaveLength(game0.expectedMoves.length)
-        })
+        function testIncorrectMove({ rounds, moves, isStrict }) {
+          it(`game does not increase madeMoves`, () => {
+            const gameSoFar = gameAfterRoundsAndMoves(rounds, moves, isStrict)
+
+            const rightMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
+            const gameAfterMove = flip(makeMove)(gameSoFar)
+
+            expect(gameAfterMove(rightMove + 1).madeMoves).toEqual(gameSoFar.madeMoves)
+          })
+        }
       })
 
 
       describe(`in strict mode`, () => {
-
-        it(`game resets`, () => {
-          const gameSoFar = gameAfterRoundsAndMoves(6, 2, true)
-
-          const rightMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
-          const gameAfterMove = flip(makeMove)(gameSoFar)
-
-          expect(gameAfterMove(rightMove + 1).expectedMoves).toHaveLength(1)
-          expect(gameAfterMove(rightMove + 1).madeMoves).toHaveLength(0)
-        })
+        testIncorrectMove({ rounds: 6, moves: 2, isStrict: true })
+        testIncorrectMove({ rounds: 12, moves: 10, isStrict: true })
+        testIncorrectMove({ rounds: 5, moves: 4, isStrict: true })
 
 
-        it(`game resets`, () => {
-          const gameSoFar = gameAfterRoundsAndMoves(12, 10, true)
+        function testIncorrectMove({ rounds, moves, isStrict }) {
+          it(`game resets`, () => {
+            const gameSoFar = gameAfterRoundsAndMoves(rounds, moves, isStrict)
 
-          const rightMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
-          const gameAfterMove = flip(makeMove)(gameSoFar)
+            const rightMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
+            const gameAfterMove = flip(makeMove)(gameSoFar)
 
-          expect(gameAfterMove(rightMove + 1).expectedMoves).toHaveLength(1)
-          expect(gameAfterMove(rightMove + 1).madeMoves).toHaveLength(0)
-        })
-
-
-        it(`game resets`, () => {
-          const gameSoFar = gameAfterRoundsAndMoves(5, 4, true)
-
-          const rightMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
-          const gameAfterMove = flip(makeMove)(gameSoFar)
-
-          expect(gameAfterMove(rightMove + 1).expectedMoves).toHaveLength(1)
-          expect(gameAfterMove(rightMove + 1).madeMoves).toHaveLength(0)
-        })
+            expect(gameAfterMove(rightMove + 1).expectedMoves).toHaveLength(1)
+            expect(gameAfterMove(rightMove + 1).madeMoves).toHaveLength(0)
+          })
+        }
       })
     })
   })
 })
-
-
-function testRoundLengthAfterRound(roundsPlayed, expectedRoundLength) {
-  it(`after ${roundsPlayed} rounds, game round length is ${expectedRoundLength}`, () => {
-    const gameSoFar = gameAfterRounds(roundsPlayed)
-
-    expect(gameSoFar.expectedMoves).toHaveLength(expectedRoundLength)
-  })
-}
 
 
 function gameAfterRoundsAndMoves(roundsCount, movesCount, isStrict) {
