@@ -56,13 +56,13 @@ describe(`simon game`, () => {
 
 
         function testIncorrectMove({ rounds, moves, isStrict }) {
-          it(`game does not increase madeMoves`, () => {
+          it(`game resets madeMoves`, () => {
             const gameSoFar = gameAfterRoundsAndMoves(rounds, moves, isStrict)
 
             const rightMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
             const gameAfterMove = flip(makeMove)(gameSoFar)
 
-            expect(gameAfterMove(rightMove + 1).madeMoves).toEqual(gameSoFar.madeMoves)
+            expect(gameAfterMove(rightMove + 1).madeMoves).toEqual([])
           })
         }
       })

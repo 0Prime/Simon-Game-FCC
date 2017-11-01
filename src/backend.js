@@ -22,19 +22,19 @@ const makeMove = autoCurry((move, game) => {
   if (isOver)
     return game
 
+  const _makeGame = makeGame(isStrict)
   const wrongMove = move !== expectedMoves[madeMoves.length]
 
   if (wrongMove)
-    return isStrict ? newGame(isStrict) : game
+    return isStrict ? newGame(isStrict) : _makeGame(game.expectedMoves, [], false)
 
   const newMoves = madeMoves.concat(move)
   const roundIsOver = madeMoves.length + 1 === expectedMoves.length
   const gameIsOver = roundIsOver && expectedMoves.length === 20
 
-  return pipe(makeGame(isStrict),
-    gameOf => gameIsOver ? gameOf(expectedMoves, newMoves, true) :
-    roundIsOver ? gameOf(expectedMoves.concat(generateMove()), [], false) :
-    gameOf(expectedMoves, newMoves, false))
+  return gameIsOver ? _makeGame(expectedMoves, newMoves, true) :
+    roundIsOver ? _makeGame(expectedMoves.concat(generateMove()), [], false) :
+    _makeGame(expectedMoves, newMoves, false)
 })
 
 
