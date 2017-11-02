@@ -3,8 +3,8 @@ const { newGame, makeMove } = require('./backend')
 
 
 describe(`simon game`, () => {
-  it(`new game is not over`, () =>
-    expect(newGame().isOver).toBe(false))
+  it(`new game status is 'new round'`, () =>
+    expect(newGame().status).toBe('new round'))
 
 
   it(`has expected moves only of four types`, () => {
@@ -43,8 +43,23 @@ describe(`simon game`, () => {
       }
 
 
-      it(`after 20 rounds game is over`, () =>
-        expect(gameAfterRounds(20).isOver).toBe(true))
+      it(`after 20 rounds game status is 'win'`, () =>
+        expect(gameAfterRounds(20).status).toBe('win'))
+
+
+      describe(`game status is new round`, () => {
+        for (n = 0; n < 20; n++)
+          testStatusAfterRounds(n)
+      })
+
+
+      function testStatusAfterRounds(roundsPlayed) {
+        it(`after ${roundsPlayed} rounds, game status is 'new round'`, () => {
+          const gameSoFar = gameAfterRounds(roundsPlayed)
+
+          expect(gameSoFar.status).toBe('new round')
+        })
+      }
     })
 
 
@@ -53,6 +68,10 @@ describe(`simon game`, () => {
         testIncorrectMove({ rounds: 6, moves: 2, isStrict: false })
         testIncorrectMove({ rounds: 12, moves: 10, isStrict: false })
         testIncorrectMove({ rounds: 5, moves: 4, isStrict: false })
+
+        testIncorrectMoveStatus({ rounds: 6, moves: 2, isStrict: false })
+        testIncorrectMoveStatus({ rounds: 12, moves: 10, isStrict: false })
+        testIncorrectMoveStatus({ rounds: 5, moves: 4, isStrict: false })
 
 
         function testIncorrectMove({ rounds, moves, isStrict }) {
@@ -73,6 +92,10 @@ describe(`simon game`, () => {
         testIncorrectMove({ rounds: 12, moves: 10, isStrict: true })
         testIncorrectMove({ rounds: 5, moves: 4, isStrict: true })
 
+        testIncorrectMoveStatus({ rounds: 6, moves: 2, isStrict: true })
+        testIncorrectMoveStatus({ rounds: 12, moves: 10, isStrict: true })
+        testIncorrectMoveStatus({ rounds: 5, moves: 4, isStrict: true })
+
 
         function testIncorrectMove({ rounds, moves, isStrict }) {
           it(`game resets`, () => {
@@ -86,6 +109,18 @@ describe(`simon game`, () => {
           })
         }
       })
+
+
+      function testIncorrectMoveStatus({ rounds, moves, isStrict }) {
+        it(`game status is 'new round'`, () => {
+          const gameSoFar = gameAfterRoundsAndMoves(rounds, moves, isStrict)
+
+          const rightMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
+          const gameAfterMove = flip(makeMove)(gameSoFar)
+
+          expect(gameAfterMove(rightMove + 1).status).toBe('new round')
+        })
+      }
     })
   })
 })
