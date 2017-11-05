@@ -4,28 +4,27 @@ const { pipe, anyOf, autoCurry } = require('./tools')
 const generateMove = () => anyOf([0, 1, 2, 3])
 
 
-const makeGame = autoCurry((isStrict, expected, made, callbacks) => ({
-  expectedMoves: expected,
-  madeMoves: made,
-  isStrict: isStrict,
-  callbacks: callbacks
-}))
-
-
 const makeGameWith = autoCurry((game, { expectedMoves, madeMoves, callbacks, isStrict }) => ({
   expectedMoves: expectedMoves || game.expectedMoves,
   madeMoves: madeMoves || game.madeMoves,
-  isStrict: isStrict || game.isStrict, // fixme maybe // undefined test!  
+  isStrict: isStrict || game.isStrict, // maybe fixme  
   callbacks: callbacks || game.callbacks
 }))
 
 
-const newGame = (isStrict, callbacks) => ({
-  expectedMoves: [generateMove()],
-  madeMoves: [],
-  isStrict: isStrict,
-  callbacks: callbacks
-})
+const newGame = (isStrict, { onOk, onError, onNewRound, onWin }) =>
+  pipe(f => x => { f(x); return x; },
+    map => ({
+      expectedMoves: [generateMove()],
+      madeMoves: [],
+      isStrict: isStrict,
+      callbacks: {
+        onOk: map(onOk),
+        onError: map(onError),
+        onNewRound: map(onNewRound),
+        onWin: map(onWin)
+      }
+    }))
 
 
 const makeMove = autoCurry((move, game) => {
@@ -36,44 +35,22 @@ const makeMove = autoCurry((move, game) => {
 
   const makeGame = makeGameWith(game)
 
-  if (wrongMove) {
-    if (isStrict) {
-      const ret = makeGame({ madeMoves: [], expectedMoves: [generateMove()] })
-      onError(ret)
-      onNewRound(ret)
-      return ret
-    } else {
-      const ret = makeGame({ madeMoves: [] })
-      onError(ret)
-      onNewRound(ret)
-      return ret
-    }
-  }
+  if (wrongMove) return pipe(
+    isStrict ? [generateMove()] : expectedMoves,
+    ms => makeGame({ madeMoves: [], expectedMoves: ms }),
+    onError, onNewRound)
 
-
-  const newMoves = madeMoves.concat(move)
   const roundIsOver = madeMoves.length + 1 === expectedMoves.length
   const gameIsOver = roundIsOver && expectedMoves.length === 20
 
-
-  if (gameIsOver) {
-    const ret = makeGame({ madeMoves: [], expectedMoves: [generateMove()] })
-    onOk(ret)
-    onWin(ret)
-    onNewRound(ret)
-    return ret
-  }
-
-  if (roundIsOver) {
-    const ret = makeGame({ expectedMoves: expectedMoves.concat(generateMove()), madeMoves: [] })
-    onOk(ret)
-    onNewRound(ret)
-    return ret
-  }
-
-  const ret = makeGame({ madeMoves: newMoves })
-  onOk(ret)
-  return ret
+  return gameIsOver ?
+    pipe({ madeMoves: [], expectedMoves: [generateMove()] },
+      makeGame, onOk, onWin, onNewRound) :
+    roundIsOver ?
+    pipe({ madeMoves: [], expectedMoves: expectedMoves.concat(generateMove()) },
+      makeGame, onOk, onNewRound) :
+    pipe({ madeMoves: madeMoves.concat(move) },
+      makeGame, onOk)
 })
 
 

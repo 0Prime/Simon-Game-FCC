@@ -1,13 +1,5 @@
-const { last, flip, intersection, pipe, repeat } = require('./tools')
+const { autoCurry, last, flip, intersection, pipe, repeat } = require('./tools')
 const { newGame, makeMove } = require('./backend')
-
-const doNothing = () => {}
-const stubCallbacks = {
-  onError: doNothing,
-  onNewRound: doNothing,
-  onOk: doNothing,
-  onWin: doNothing
-}
 
 
 describe(`simon game`, () => {
@@ -33,117 +25,82 @@ describe(`simon game`, () => {
 
   describe(`function makeMove`, () => {
     describe(`callback handling`, () => {
-
       describe(`correct move triggers 'onOk' callback`, () => {
+        const tester = testCallbacks(['onOk'], rightMove)
 
-        testOnOkCallback({ rounds: 5, moves: 2, isStrict: true })
-        testOnOkCallback({ rounds: 9, moves: 6, isStrict: true })
-        testOnOkCallback({ rounds: 11, moves: 3, isStrict: true })
+        const testStrict = tester(true)
+        testStrict({ rounds: 5, moves: 2 })
+        testStrict({ rounds: 9, moves: 6 })
+        testStrict({ rounds: 11, moves: 3 })
 
-        testOnOkCallback({ rounds: 4, moves: 1, isStrict: false })
-        testOnOkCallback({ rounds: 6, moves: 3, isStrict: false })
-        testOnOkCallback({ rounds: 9, moves: 7, isStrict: false })
-
-
-        function testOnOkCallback({ rounds, moves, isStrict }) {
-          it(`'onOk' is called once`, () => {
-            const onOk = jest.fn()
-            const gameSoFar = gameAfterRoundsAndMoves(rounds, moves, isStrict)
-            gameSoFar.callbacks.onOk = onOk
-            const rightMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
-            makeMove(rightMove, gameSoFar)
-            expect(onOk).toHaveBeenCalledTimes(1)
-          })
-        }
+        const testUnstrict = tester(false)
+        testUnstrict({ rounds: 4, moves: 1 })
+        testUnstrict({ rounds: 6, moves: 3 })
+        testUnstrict({ rounds: 9, moves: 7 })
       })
 
 
       describe(`new round triggers 'onOk' and 'onNewRound' callbacks`, () => {
-        testCallbacks({ rounds: 5, moves: 5, isStrict: true })
-        testCallbacks({ rounds: 9, moves: 9, isStrict: true })
-        testCallbacks({ rounds: 11, moves: 11, isStrict: true })
+        const tester = testCallbacks(['onOk', 'onNewRound'], rightMove)
 
-        testCallbacks({ rounds: 4, moves: 4, isStrict: false })
-        testCallbacks({ rounds: 6, moves: 6, isStrict: false })
-        testCallbacks({ rounds: 9, moves: 9, isStrict: false })
+        const testStrict = tester(true)
+        testStrict({ rounds: 5, moves: 5 })
+        testStrict({ rounds: 9, moves: 9 })
+        testStrict({ rounds: 11, moves: 11 })
 
-
-        function testCallbacks({ rounds, moves, isStrict }) {
-          const gameSoFar = gameAfterRoundsAndMoves(rounds, moves, isStrict)
-
-          it(`'onOk' and 'onNewRound' are called once each`, () => {
-            const onOk = jest.fn()
-            const onNewRound = jest.fn()
-
-            gameSoFar.callbacks.onOk = onOk
-            gameSoFar.callbacks.onNewRound = onNewRound
-
-            const rightMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
-            makeMove(rightMove, gameSoFar)
-
-            expect(onOk).toHaveBeenCalledTimes(1)
-            expect(onNewRound).toHaveBeenCalledTimes(1)
-          })
-        }
+        const testUnstrict = tester(false)
+        testUnstrict({ rounds: 4, moves: 4 })
+        testUnstrict({ rounds: 6, moves: 6 })
+        testUnstrict({ rounds: 9, moves: 9 })
       })
 
 
       describe(`wrong move triggers 'onError' and 'onNewRound' callbacks`, () => {
-        testCallbacks({ rounds: 4, moves: 3, isStrict: true })
-        testCallbacks({ rounds: 5, moves: 5, isStrict: true })
-        testCallbacks({ rounds: 11, moves: 1, isStrict: true })
+        const tester = testCallbacks(['onError', 'onNewRound'], wrongMove)
 
-        testCallbacks({ rounds: 15, moves: 9, isStrict: false })
-        testCallbacks({ rounds: 13, moves: 1, isStrict: false })
-        testCallbacks({ rounds: 18, moves: 17, isStrict: false })
+        const testStrict = tester(true)
+        testStrict({ rounds: 4, moves: 3 })
+        testStrict({ rounds: 5, moves: 5 })
+        testStrict({ rounds: 11, moves: 1 })
 
-
-        function testCallbacks({ rounds, moves, isStrict }) {
-          const gameSoFar = gameAfterRoundsAndMoves(rounds, moves, isStrict)
-
-          it(`'onError' and 'onNewRound' are called once each`, () => {
-            const onError = jest.fn()
-            const onNewRound = jest.fn()
-
-            gameSoFar.callbacks.onError = onError
-            gameSoFar.callbacks.onNewRound = onNewRound
-
-            const wrongMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length] + 1
-            makeMove(wrongMove, gameSoFar)
-
-            expect(onError).toHaveBeenCalledTimes(1)
-            expect(onNewRound).toHaveBeenCalledTimes(1)
-          })
-        }
+        const testUnstrict = tester(false)
+        testUnstrict({ rounds: 15, moves: 9 })
+        testUnstrict({ rounds: 13, moves: 1 })
+        testUnstrict({ rounds: 18, moves: 17 })
       })
 
 
       describe(`win triggers 'onOk', 'onWin' and 'onNewRound' callbacks`, () => {
-        testCallbacks({ rounds: 19, moves: 19, isStrict: true })
-        testCallbacks({ rounds: 19, moves: 19, isStrict: false })
+        const tester = testCallbacks(['onOk', 'onWin', 'onNewRound'], rightMove)
+
+        tester(true, { rounds: 19, moves: 19 })
+        tester(false, { rounds: 19, moves: 19 })
+      })
 
 
-        function testCallbacks({ rounds, moves, isStrict }) {
-          const gameSoFar = gameAfterRoundsAndMoves(rounds, moves, isStrict)
+      function testCallbacks() {
+        return autoCurry((callbackNames, moveFn, isStrict, { rounds, moves }) =>
+          it(`${callbackNames} functions are called once each`, () => {
+            const mocks = callbackNames.map(n => [n, jest.fn()])
 
-          it(`'onOk', 'onWin', 'onNewRound' are called once each`, () => {
-            const onOk = jest.fn()
-            const onWin = jest.fn()
-            const onNewRound = jest.fn()
+            const gameSoFar = pipe(
+              gameAfterRoundsAndMoves(rounds, moves, isStrict),
+              game => mocks.reduce((g, [n, m]) => {
+                g.callbacks[n] = m
+                return g
+              }, game))
 
-            gameSoFar.callbacks.onOk = onOk
-            gameSoFar.callbacks.onWin = onWin
-            gameSoFar.callbacks.onNewRound = onNewRound
-
-            const move = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
+            const move = moveFn(gameSoFar)
             makeMove(move, gameSoFar)
 
-            expect(onOk).toHaveBeenCalledTimes(1)
-            expect(onWin).toHaveBeenCalledTimes(1)
-            expect(onNewRound).toHaveBeenCalledTimes(1)
-          })
-        }
-      })
+            mocks.forEach(([n, m]) =>
+              expect(m).toHaveBeenCalledTimes(1))
+          }))
+      }
+
+      function rightMove(g) { return g.expectedMoves[g.madeMoves.length] }
+
+      function wrongMove(g) { return rightMove(g) + 1 }
     })
 
 
@@ -227,5 +184,11 @@ function makeMoves(moves, g) {
 
 
 function newGameWithStubCallbacks(isStrict) {
-  return newGame(isStrict, stubCallbacks)
+  const doNothing = () => {}
+  return newGame(isStrict, {
+    onError: doNothing,
+    onNewRound: doNothing,
+    onOk: doNothing,
+    onWin: doNothing
+  })
 }
