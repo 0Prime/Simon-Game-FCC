@@ -4,44 +4,76 @@ const { pipe, anyOf, autoCurry } = require('./tools')
 const generateMove = () => anyOf([0, 1, 2, 3])
 
 
-const makeGame = autoCurry((isStrict, expected, made, status) => ({
+const makeGame = autoCurry((isStrict, expected, made, callbacks) => ({
   expectedMoves: expected,
   madeMoves: made,
   isStrict: isStrict,
-  status: status
+  callbacks: callbacks
 }))
 
 
-const statuses = {
-  newRound: 'new round',
-  win: 'win',
-  ok: 'ok'
-}
+const makeGameWith = autoCurry((game, { expectedMoves, madeMoves, callbacks, isStrict }) => ({
+  expectedMoves: expectedMoves || game.expectedMoves,
+  madeMoves: madeMoves || game.madeMoves,
+  isStrict: isStrict || game.isStrict, // fixme maybe // undefined test!  
+  callbacks: callbacks || game.callbacks
+}))
 
 
-const newGame = isStrict =>
-  makeGame(isStrict, [generateMove()], [], statuses.newRound)
+const newGame = (isStrict, callbacks) => ({
+  expectedMoves: [generateMove()],
+  madeMoves: [],
+  isStrict: isStrict,
+  callbacks: callbacks
+})
 
 
 const makeMove = autoCurry((move, game) => {
-  const { madeMoves, expectedMoves, status, isStrict } = game
+  const { madeMoves, expectedMoves, isStrict, callbacks } = game
+  const { onOk, onError, onWin, onNewRound } = callbacks
 
-  if (status === statuses.win)
-    return game
-
-  const _makeGame = makeGame(isStrict)
   const wrongMove = move !== expectedMoves[madeMoves.length]
 
-  if (wrongMove)
-    return isStrict ? newGame(isStrict) : _makeGame(game.expectedMoves, [], statuses.newRound)
+  const makeGame = makeGameWith(game)
+
+  if (wrongMove) {
+    if (isStrict) {
+      const ret = makeGame({ madeMoves: [], expectedMoves: [generateMove()] })
+      onError(ret)
+      onNewRound(ret)
+      return ret
+    } else {
+      const ret = makeGame({ madeMoves: [] })
+      onError(ret)
+      onNewRound(ret)
+      return ret
+    }
+  }
+
 
   const newMoves = madeMoves.concat(move)
   const roundIsOver = madeMoves.length + 1 === expectedMoves.length
   const gameIsOver = roundIsOver && expectedMoves.length === 20
 
-  return gameIsOver ? _makeGame(expectedMoves, newMoves, statuses.win) :
-    roundIsOver ? _makeGame(expectedMoves.concat(generateMove()), [], statuses.newRound) :
-    _makeGame(expectedMoves, newMoves, statuses.ok)
+
+  if (gameIsOver) {
+    const ret = makeGame({ madeMoves: [], expectedMoves: [generateMove()] })
+    onOk(ret)
+    onWin(ret)
+    onNewRound(ret)
+    return ret
+  }
+
+  if (roundIsOver) {
+    const ret = makeGame({ expectedMoves: expectedMoves.concat(generateMove()), madeMoves: [] })
+    onOk(ret)
+    onNewRound(ret)
+    return ret
+  }
+
+  const ret = makeGame({ madeMoves: newMoves })
+  onOk(ret)
+  return ret
 })
 
 

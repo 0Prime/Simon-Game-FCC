@@ -1,12 +1,16 @@
-const { last, flip, intersection, pipe } = require('./tools')
+const { last, flip, intersection, pipe, repeat } = require('./tools')
 const { newGame, makeMove } = require('./backend')
+
+const doNothing = () => {}
+const stubCallbacks = {
+  onError: doNothing,
+  onNewRound: doNothing,
+  onOk: doNothing,
+  onWin: doNothing
+}
 
 
 describe(`simon game`, () => {
-  it(`new game status is 'new round'`, () =>
-    expect(newGame().status).toBe('new round'))
-
-
   it(`has expected moves only of four types`, () => {
     /**
      * In highly unlikely situation when random generator
@@ -14,8 +18,8 @@ describe(`simon game`, () => {
      * this test will fail
      */
     const generatedMoves = []
-    while (generatedMoves.length < 1000)
-      generatedMoves.push(newGame().expectedMoves[0])
+    repeat(() =>
+      generatedMoves.push(newGameWithStubCallbacks(false).expectedMoves[0]), 1000)
 
     const allowedMoves = [0, 1, 2, 3]
     const result = intersection(allowedMoves, generatedMoves)
@@ -28,6 +32,121 @@ describe(`simon game`, () => {
 
 
   describe(`function makeMove`, () => {
+    describe(`callback handling`, () => {
+
+      describe(`correct move triggers 'onOk' callback`, () => {
+
+        testOnOkCallback({ rounds: 5, moves: 2, isStrict: true })
+        testOnOkCallback({ rounds: 9, moves: 6, isStrict: true })
+        testOnOkCallback({ rounds: 11, moves: 3, isStrict: true })
+
+        testOnOkCallback({ rounds: 4, moves: 1, isStrict: false })
+        testOnOkCallback({ rounds: 6, moves: 3, isStrict: false })
+        testOnOkCallback({ rounds: 9, moves: 7, isStrict: false })
+
+
+        function testOnOkCallback({ rounds, moves, isStrict }) {
+          it(`'onOk' is called once`, () => {
+            const onOk = jest.fn()
+            const gameSoFar = gameAfterRoundsAndMoves(rounds, moves, isStrict)
+            gameSoFar.callbacks.onOk = onOk
+            const rightMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
+            makeMove(rightMove, gameSoFar)
+            expect(onOk).toHaveBeenCalledTimes(1)
+          })
+        }
+      })
+
+
+      describe(`new round triggers 'onOk' and 'onNewRound' callbacks`, () => {
+        testCallbacks({ rounds: 5, moves: 5, isStrict: true })
+        testCallbacks({ rounds: 9, moves: 9, isStrict: true })
+        testCallbacks({ rounds: 11, moves: 11, isStrict: true })
+
+        testCallbacks({ rounds: 4, moves: 4, isStrict: false })
+        testCallbacks({ rounds: 6, moves: 6, isStrict: false })
+        testCallbacks({ rounds: 9, moves: 9, isStrict: false })
+
+
+        function testCallbacks({ rounds, moves, isStrict }) {
+          const gameSoFar = gameAfterRoundsAndMoves(rounds, moves, isStrict)
+
+          it(`'onOk' and 'onNewRound' are called once each`, () => {
+            const onOk = jest.fn()
+            const onNewRound = jest.fn()
+
+            gameSoFar.callbacks.onOk = onOk
+            gameSoFar.callbacks.onNewRound = onNewRound
+
+            const rightMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
+            makeMove(rightMove, gameSoFar)
+
+            expect(onOk).toHaveBeenCalledTimes(1)
+            expect(onNewRound).toHaveBeenCalledTimes(1)
+          })
+        }
+      })
+
+
+      describe(`wrong move triggers 'onError' and 'onNewRound' callbacks`, () => {
+        testCallbacks({ rounds: 4, moves: 3, isStrict: true })
+        testCallbacks({ rounds: 5, moves: 5, isStrict: true })
+        testCallbacks({ rounds: 11, moves: 1, isStrict: true })
+
+        testCallbacks({ rounds: 15, moves: 9, isStrict: false })
+        testCallbacks({ rounds: 13, moves: 1, isStrict: false })
+        testCallbacks({ rounds: 18, moves: 17, isStrict: false })
+
+
+        function testCallbacks({ rounds, moves, isStrict }) {
+          const gameSoFar = gameAfterRoundsAndMoves(rounds, moves, isStrict)
+
+          it(`'onError' and 'onNewRound' are called once each`, () => {
+            const onError = jest.fn()
+            const onNewRound = jest.fn()
+
+            gameSoFar.callbacks.onError = onError
+            gameSoFar.callbacks.onNewRound = onNewRound
+
+            const wrongMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length] + 1
+            makeMove(wrongMove, gameSoFar)
+
+            expect(onError).toHaveBeenCalledTimes(1)
+            expect(onNewRound).toHaveBeenCalledTimes(1)
+          })
+        }
+      })
+
+
+      describe(`win triggers 'onOk', 'onWin' and 'onNewRound' callbacks`, () => {
+        testCallbacks({ rounds: 19, moves: 19, isStrict: true })
+        testCallbacks({ rounds: 19, moves: 19, isStrict: false })
+
+
+        function testCallbacks({ rounds, moves, isStrict }) {
+          const gameSoFar = gameAfterRoundsAndMoves(rounds, moves, isStrict)
+
+          it(`'onOk', 'onWin', 'onNewRound' are called once each`, () => {
+            const onOk = jest.fn()
+            const onWin = jest.fn()
+            const onNewRound = jest.fn()
+
+            gameSoFar.callbacks.onOk = onOk
+            gameSoFar.callbacks.onWin = onWin
+            gameSoFar.callbacks.onNewRound = onNewRound
+
+            const move = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
+            makeMove(move, gameSoFar)
+
+            expect(onOk).toHaveBeenCalledTimes(1)
+            expect(onWin).toHaveBeenCalledTimes(1)
+            expect(onNewRound).toHaveBeenCalledTimes(1)
+          })
+        }
+      })
+    })
+
+
     describe(`then user finishes round correctly`, () => {
 
       for (n = 0; n < 20; n++)
@@ -41,25 +160,6 @@ describe(`simon game`, () => {
           expect(gameSoFar.expectedMoves).toHaveLength(expectedLength)
         })
       }
-
-
-      it(`after 20 rounds game status is 'win'`, () =>
-        expect(gameAfterRounds(20).status).toBe('win'))
-
-
-      describe(`game status is new round`, () => {
-        for (n = 0; n < 20; n++)
-          testStatusAfterRounds(n)
-      })
-
-
-      function testStatusAfterRounds(roundsPlayed) {
-        it(`after ${roundsPlayed} rounds, game status is 'new round'`, () => {
-          const gameSoFar = gameAfterRounds(roundsPlayed)
-
-          expect(gameSoFar.status).toBe('new round')
-        })
-      }
     })
 
 
@@ -68,10 +168,6 @@ describe(`simon game`, () => {
         testIncorrectMove({ rounds: 6, moves: 2, isStrict: false })
         testIncorrectMove({ rounds: 12, moves: 10, isStrict: false })
         testIncorrectMove({ rounds: 5, moves: 4, isStrict: false })
-
-        testIncorrectMoveStatus({ rounds: 6, moves: 2, isStrict: false })
-        testIncorrectMoveStatus({ rounds: 12, moves: 10, isStrict: false })
-        testIncorrectMoveStatus({ rounds: 5, moves: 4, isStrict: false })
 
 
         function testIncorrectMove({ rounds, moves, isStrict }) {
@@ -92,10 +188,6 @@ describe(`simon game`, () => {
         testIncorrectMove({ rounds: 12, moves: 10, isStrict: true })
         testIncorrectMove({ rounds: 5, moves: 4, isStrict: true })
 
-        testIncorrectMoveStatus({ rounds: 6, moves: 2, isStrict: true })
-        testIncorrectMoveStatus({ rounds: 12, moves: 10, isStrict: true })
-        testIncorrectMoveStatus({ rounds: 5, moves: 4, isStrict: true })
-
 
         function testIncorrectMove({ rounds, moves, isStrict }) {
           it(`game resets`, () => {
@@ -109,18 +201,6 @@ describe(`simon game`, () => {
           })
         }
       })
-
-
-      function testIncorrectMoveStatus({ rounds, moves, isStrict }) {
-        it(`game status is 'new round'`, () => {
-          const gameSoFar = gameAfterRoundsAndMoves(rounds, moves, isStrict)
-
-          const rightMove = gameSoFar.expectedMoves[gameSoFar.madeMoves.length]
-          const gameAfterMove = flip(makeMove)(gameSoFar)
-
-          expect(gameAfterMove(rightMove + 1).status).toBe('new round')
-        })
-      }
     })
   })
 })
@@ -134,7 +214,7 @@ function gameAfterRoundsAndMoves(roundsCount, movesCount, isStrict) {
 
 
 function gameAfterRounds(x, isStrict) {
-  let game = newGame(isStrict)
+  let game = newGameWithStubCallbacks(isStrict)
   for (i = 0; i < x; i++)
     game = makeMoves(game.expectedMoves, game)
   return game
@@ -143,4 +223,9 @@ function gameAfterRounds(x, isStrict) {
 
 function makeMoves(moves, g) {
   return moves.reduce(flip(makeMove), g)
+}
+
+
+function newGameWithStubCallbacks(isStrict) {
+  return newGame(isStrict, stubCallbacks)
 }

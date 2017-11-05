@@ -47,6 +47,9 @@ const equals = autoCurry((xs, ys) =>
 const anyOf = xs => xs[Math.floor(Math.random() * xs.length)]
 
 
+const repeat = autoCurry((f, n) => { for (i = 0; i < n; i++) f() })
+
+
 module.exports = {
   pipe: pipe,
   flip: flip,
@@ -60,5 +63,6 @@ module.exports = {
   isEven: isEven,
   isOdd: isOdd,
   equals: equals,
-  anyOf: anyOf
+  anyOf: anyOf,
+  repeat: repeat
 }
