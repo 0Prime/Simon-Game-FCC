@@ -4,12 +4,10 @@ const pipe = (x, f, ...fs) => f ? pipe(f(x), ...fs) : x
 const curry = (f, ...args) => f.bind(undefined, ...args)
 
 
-const autoCurry = f => function() {
-  const args = Array.from(arguments)
-  return args.length < f.length ?
-    autoCurry(f.bind(undefined, ...args)) :
-    f(...args)
-}
+const autoCurry = f => (...args) =>
+  args.length < f.length ?
+  autoCurry(f.bind(undefined, ...args)) :
+  f(...args)
 
 
 const flip = autoCurry((f, a, b) => f(b, a))
