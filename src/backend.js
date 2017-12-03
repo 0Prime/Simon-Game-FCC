@@ -4,12 +4,8 @@ const { pipe, anyOf, autoCurry } = require('./tools')
 const generateMove = () => anyOf([0, 1, 2, 3])
 
 
-const makeGameWith = autoCurry((game, { expectedMoves, madeMoves, callbacks, isStrict }) => ({
-  expectedMoves: expectedMoves || game.expectedMoves,
-  madeMoves: madeMoves || game.madeMoves,
-  isStrict: isStrict || game.isStrict, // maybe fixme  
-  callbacks: callbacks || game.callbacks
-}))
+const makeGameWith = autoCurry((game, changes) =>
+  Object.assign({}, game, changes))
 
 
 const newGame = (isStrict, { onOk, onError, onNewRound, onWin }) =>
