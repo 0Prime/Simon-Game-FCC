@@ -1,6 +1,12 @@
 const pipe = (x, f, ...fs) => f ? pipe(f(x), ...fs) : x
 
 
+const compose = (...fs) =>
+  fs.reduce((prevFn, nextFn) =>
+    x => nextFn(prevFn(x)),
+    x => x)
+
+
 const curry = (f, ...args) => f.bind(undefined, ...args)
 
 
@@ -49,18 +55,18 @@ const repeat = autoCurry((f, n) => { for (i = 0; i < n; i++) f() })
 
 
 module.exports = {
-  pipe: pipe,
-  flip: flip,
-  curry: curry,
-  autoCurry: autoCurry,
-  last: last,
-  groupBy: groupBy,
-  splitBy: splitBy,
-  intersection: intersection,
-  sortPair: sortPair,
-  isEven: isEven,
-  isOdd: isOdd,
-  equals: equals,
-  anyOf: anyOf,
-  repeat: repeat
+  pipe,
+  flip,
+  curry,
+  autoCurry,
+  last,
+  groupBy,
+  splitBy,
+  intersection,
+  sortPair,
+  isEven,
+  isOdd,
+  equals,
+  anyOf,
+  repeat
 }

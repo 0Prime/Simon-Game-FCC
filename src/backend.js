@@ -50,7 +50,4 @@ const makeMove = autoCurry((move, game) => {
 })
 
 
-module.exports = {
-  newGame: newGame,
-  makeMove: makeMove
-}
+module.exports = { newGame, makeMove }
